@@ -13,13 +13,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +53,8 @@ import com.f430947.securespend.data.Expense
  *
  * Features:
  * - TopAppBar with a Share button (ShareSheet via Intent.ACTION_SEND)
+ * - Spending summary card with today's total and all-time total
+ * - Category filter chips to narrow the expense list
  * - FloatingActionButton to navigate to the Add Expense screen
  * - LazyColumn for performant list rendering (L2 best practice)
  * - Adaptive two-pane layout on tablets (screen width > 600 dp) (L5)
@@ -64,7 +70,19 @@ fun DashboardScreen(
     val isWideScreen = LocalConfiguration.current.screenWidthDp > 600
 
     var selectedExpense by remember { mutableStateOf<Expense?>(null) }
+    // Persisted across rotation: which category filter chip is active ("All" = no filter)
+    var activeCategory by rememberSaveable { mutableStateOf("All") }
+
     val todayTotal = viewModel.getTodayTotal(expenses)
+    val allTimeTotal = expenses.sumOf { it.amount }
+
+    // Categories that actually appear in the current expense list (plus "All")
+    val availableCategories = listOf("All") +
+            expenses.map { it.category.ifBlank { "Other" } }.distinct().sorted()
+
+    // Filter expenses by selected category
+    val filteredExpenses = if (activeCategory == "All") expenses
+    else expenses.filter { it.category.ifBlank { "Other" } == activeCategory }
 
     Scaffold(
         topBar = {
@@ -86,12 +104,19 @@ fun DashboardScreen(
         if (isWideScreen) {
             // Adaptive layout: two-pane list/detail for tablets (L5)
             Row(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-                ExpenseList(
-                    expenses = expenses,
-                    onExpenseClick = { selectedExpense = it },
-                    onDeleteClick = { viewModel.deleteExpense(it) },
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    SpendingSummaryCard(todayTotal = todayTotal, allTimeTotal = allTimeTotal)
+                    CategoryFilterRow(
+                        categories = availableCategories,
+                        activeCategory = activeCategory,
+                        onCategorySelected = { activeCategory = it }
+                    )
+                    ExpenseList(
+                        expenses = filteredExpenses,
+                        onExpenseClick = { selectedExpense = it },
+                        onDeleteClick = { viewModel.deleteExpense(it) }
+                    )
+                }
                 VerticalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
                 Box(
                     modifier = Modifier
@@ -111,12 +136,77 @@ fun DashboardScreen(
                 }
             }
         } else {
-            // Phone layout: single-pane list
-            ExpenseList(
-                expenses = expenses,
-                onExpenseClick = { selectedExpense = it },
-                onDeleteClick = { viewModel.deleteExpense(it) },
-                modifier = Modifier.padding(paddingValues)
+            // Phone layout: single-pane with summary + filter + list
+            Column(modifier = Modifier.padding(paddingValues)) {
+                SpendingSummaryCard(todayTotal = todayTotal, allTimeTotal = allTimeTotal)
+                CategoryFilterRow(
+                    categories = availableCategories,
+                    activeCategory = activeCategory,
+                    onCategorySelected = { activeCategory = it }
+                )
+                ExpenseList(
+                    expenses = filteredExpenses,
+                    onExpenseClick = { selectedExpense = it },
+                    onDeleteClick = { viewModel.deleteExpense(it) }
+                )
+            }
+        }
+    }
+}
+
+/** Summary card showing today's spending and the all-time total. */
+@Composable
+fun SpendingSummaryCard(todayTotal: Double, allTimeTotal: Double) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Today", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "£%.2f".format(todayTotal),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("All-time", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "£%.2f".format(allTimeTotal),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
+
+/** Horizontally scrollable row of [FilterChip]s for each expense category. */
+@Composable
+fun CategoryFilterRow(
+    categories: List<String>,
+    activeCategory: String,
+    onCategorySelected: (String) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(categories) { cat ->
+            FilterChip(
+                selected = cat == activeCategory,
+                onClick = { onCategorySelected(cat) },
+                label = { Text(cat) }
             )
         }
     }
@@ -238,3 +328,4 @@ private fun shareReport(context: Context, expenses: List<Expense>, todayTotal: D
     }
     context.startActivity(Intent.createChooser(shareIntent, "Share Budget Report"))
 }
+

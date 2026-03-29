@@ -1,6 +1,5 @@
 package com.f430947.securespend.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -21,33 +20,35 @@ private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
     tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
 )
 
+/**
+ * App-wide Material3 theme.
+ *
+ * @param themeMode One of "SYSTEM" (follow device setting), "LIGHT", or "DARK".
+ *                  Persisted via SharedPreferences and controlled from SettingsScreen.
+ * @param dynamicColor Use dynamic colours on Android 12+ (overridden when user picks LIGHT/DARK).
+ */
 @Composable
 fun SecureSpendTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    themeMode: String = "SYSTEM",
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val systemDark = isSystemInDarkTheme()
+    val useDark = when (themeMode) {
+        "LIGHT" -> false
+        "DARK"  -> true
+        else    -> systemDark
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (useDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        useDark -> DarkColorScheme
+        else    -> LightColorScheme
     }
 
     MaterialTheme(

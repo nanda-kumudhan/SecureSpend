@@ -63,7 +63,7 @@ fun AddExpenseScreen(
     var dateError by rememberSaveable { mutableStateOf(false) }
     var categoryExpanded by rememberSaveable { mutableStateOf(false) }
 
-    val categories = listOf("Food", "Transport", "Shopping", "Entertainment", "Bills", "Other")
+    val categories = ExpenseViewModel.CATEGORIES
 
     // Observe the scanned amount returned by ReceiptScannerScreen via SavedStateHandle
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle

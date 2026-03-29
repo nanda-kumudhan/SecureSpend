@@ -4,6 +4,9 @@
 
     <!-- Required for posting notifications on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required for the receipt scanner camera feature -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!--
         Custom signature-level permission (L7).

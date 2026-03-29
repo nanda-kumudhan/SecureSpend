@@ -20,6 +20,7 @@ import com.f430947.securespend.notifications.NotificationHelper
 import com.f430947.securespend.ui.AddExpenseScreen
 import com.f430947.securespend.ui.DashboardScreen
 import com.f430947.securespend.ui.ExpenseViewModel
+import com.f430947.securespend.ui.ReceiptScannerScreen
 import com.f430947.securespend.ui.theme.SecureSpendTheme
 
 /**
@@ -79,6 +80,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("add_expense") {
                         AddExpenseScreen(viewModel = viewModel, navController = navController)
+                    }
+                    composable("receipt_scanner") {
+                        ReceiptScannerScreen(navController = navController)
                     }
                 }
             }

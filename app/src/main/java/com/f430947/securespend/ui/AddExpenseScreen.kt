@@ -15,13 +15,17 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -31,12 +35,16 @@ import androidx.navigation.NavController
 import com.f430947.securespend.data.Expense
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.util.Locale
 
 /**
  * Screen for adding a new expense.
  *
  * All TextField states use rememberSaveable so that user input is preserved across
  * screen rotations, satisfying the lifecycle-aware requirement (L6).
+ *
+ * A "Scan Receipt" button navigates to ReceiptScannerScreen, which uses ML Kit to OCR
+ * a photo and return the detected total via the back-stack SavedStateHandle (L8).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +65,20 @@ fun AddExpenseScreen(
     var categoryExpanded by rememberSaveable { mutableStateOf(false) }
 
     val categories = listOf("Food", "Transport", "Shopping", "Entertainment", "Bills", "Other")
+
+    // Observe the scanned amount returned by ReceiptScannerScreen via SavedStateHandle
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val scannedAmount by savedStateHandle
+        ?.getStateFlow<Double?>("scanned_amount", null)
+        ?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(scannedAmount) {
+        scannedAmount?.let { scanned ->
+            amount = String.format(Locale.US, "%.2f", scanned)
+            amountError = false
+            savedStateHandle?.remove<Double>("scanned_amount")
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -96,6 +118,14 @@ fun AddExpenseScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
+
+            // Scan Receipt button: navigate to ReceiptScannerScreen to auto-fill the amount
+            OutlinedButton(
+                onClick = { navController.navigate("receipt_scanner") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Scan Receipt")
+            }
 
             // Category drop-down
             ExposedDropdownMenuBox(

@@ -2,6 +2,7 @@ package com.f430947.securespend
 
 import com.f430947.securespend.ui.extractTotalAmount
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
